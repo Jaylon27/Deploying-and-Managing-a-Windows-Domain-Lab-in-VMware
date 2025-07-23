@@ -3,27 +3,23 @@ Deploying and Managing a Windows Domain Lab in Hyper-V
 
 A hands-on lab to build a Windows Server 2019 domain controller and Windows 10 client in Hyper-V, with checkpoints and VM export for easy sharing.
 
----
-
 # 2. Overview & Objectives
 
 **User Story 1:**
 As a Virtualization Admin, I want to deploy a Windows Server 2019 VM so that I can act as a domain controller.
-**Objective:** Deploy and configure a Windows Server 2019 VM as an Active Directory Domain Controller (AD DC).
+- **Objective:** Deploy and configure a Windows Server 2019 VM as an Active Directory Domain Controller (AD DC).
 
 **User Story 2:**
 As a Virtualization Admin, I want to deploy a Windows 10 VM and join it to the domain so that I can test Group Policy and AD authentication.
-**Objective:** Deploy a Windows 10 VM, configure networking, and join it to the lab.local domain.
+- **Objective:** Deploy a Windows 10 VM, configure networking, and join it to the lab.local domain.
 
 **User Story 3:**
 As a Virtualization Admin, I want to take checkpoints of both VMs so that I can revert to a clean state after testing.
-**Objective:** Create and verify Hyper-V checkpoints of both the DC and client VMs.
+- **Objective:** Create and verify Hyper-V checkpoints of both the DC and client VMs.
 
 **User Story 4:**
 As a Virtualization Admin, I want to export the Server VM so that I can share my lab configuration.
-**Objective:** Export the Server VM via Export-VM and validate the package.
-
----
+- **Objective:** Export the Server VM via Export-VM and validate the package.
 
 # 3. Prerequisites
 
@@ -62,8 +58,6 @@ As a Virtualization Admin, I want to export the Server VM so that I can share my
 +-----------------------------------------+
 ```
 
----
-
 # 5. Step-by-Step Instructions
 
 ## Step 1: Create the Windows Server 2019 VM
@@ -81,11 +75,10 @@ Add-VMDvdDrive -VMName Server-DC -Path C:\ISOs\WindowsServer2019.iso
 **Explanation:**
 - Creates a Gen 2 VM named “Server-DC” with 4 vCPUs, 8 GB RAM, a fixed 60 GB VHDX, and attaches it to LabSwitch.
 - Attaches the Windows Server ISO to the virtual DVD drive for installation.
+
 **Validation:**
 - Run `Get-VM -Name Server-DC` → Status should be Off and VM settings match.
 - Confirm VHDX and DVD drive paths via `Get-VMHardDiskDrive` & `Get-VMDvdDrive`.
-
----
 
 ## Step 2: Install Windows Server 2019
 **Action:**
@@ -93,12 +86,12 @@ Add-VMDvdDrive -VMName Server-DC -Path C:\ISOs\WindowsServer2019.iso
 - Connect to the console and proceed through the Windows installer:
   - Choose Standard Installation (Desktop Experience).
   - Accept license, create Administrator password.
+
 **Explanation:**
 - Desktop Experience provides the full GUI needed to configure AD DS via Server Manager.
+
 **Validation:**
 - After install and reboot, log in as Administrator. Server Manager should auto-launch.
-
----
 
 ## Step 3: Configure Static Network Settings
 **Action (inside guest):**
@@ -111,18 +104,19 @@ Set-DnsClientServerAddress `
   -InterfaceAlias "Ethernet" `
   -ServerAddresses 192.168.56.10
 ```
+
 **Explanation:**
 - A DC requires a fixed IP so DNS records and client lookups remain stable.
+
 **Validation:**
 - `ipconfig /all` shows IPv4 = 192.168.56.10/24, DHCP disabled, DNS = 192.168.56.10.
-
----
 
 ## Step 4: Promote to Domain Controller
 **Action (GUI):**
 - In Server Manager → Manage → Add Roles and Features → install Active Directory Domain Services.
 - Click Promote this server to a domain controller.
 - Select Add a new forest, set Root domain name = lab.local, specify DSRM password, keep defaults, then Install.
+
 **Alternatively (PowerShell):**
 ```powershell
 Install-WindowsFeature AD-Domain-Services -IncludeManagementTools
@@ -132,12 +126,12 @@ Install-ADDSForest `
   -SafeModeAdministratorPassword (ConvertTo-SecureString "P@ssw0rd!" -AsPlainText -Force) `
   -InstallDNS
 ```
+
 **Explanation:**
 - Installs AD DS binaries, creates DNS zone, Global Catalog, and the first domain controller in the new forest.
+
 **Validation:**
 - After reboot, open Active Directory Users and Computers → verify lab.local domain exists.
-
----
 
 ## Step 5: Create the Windows 10 VM
 **Action:**
@@ -151,23 +145,23 @@ New-VM -Name Client-10 `
 Set-VMProcessor -VMName Client-10 -Count 2
 Add-VMDvdDrive -VMName Client-10 -Path C:\ISOs\Windows10.iso
 ```
+
 **Explanation:**
 - Builds a smaller Gen 2 VM for the client, attached to the same Internal switch.
+
 **Validation:**
 - `Get-VM -Name Client-10` → matches specs, status Off.
-
----
 
 ## Step 6: Install Windows 10
 **Action:**
 - Start and connect to “Client-10”.
 - Complete the Windows 10 installer: select edition, accept EULA, create a local Admin account.
+
 **Explanation:**
 - Prepares the client OS for domain join.
+
 **Validation:**
 - Log in to the desktop as the local Admin.
-
----
 
 ## Step 7: Configure Client Networking
 **Action (inside guest):**
@@ -180,13 +174,13 @@ Set-DnsClientServerAddress `
   -InterfaceAlias "Ethernet" `
   -ServerAddresses 192.168.56.10
 ```
+
 **Explanation:**
 - Client must use the DC for DNS to locate domain services.
+
 **Validation:**
 - `nslookup lab.local` → returns 192.168.56.10
 - `ping lab.local` → successful replies.
-
----
 
 ## Step 8: Join the Domain
 **Action (GUI):**
@@ -198,12 +192,12 @@ Add-Computer `
   -Credential (Get-Credential lab\Administrator) `
   -Restart
 ```
+
 **Explanation:**
 - Adds the workstation to AD, installs Kerberos client, and creates a computer account.
+
 **Validation:**
 - On reboot, at login screen choose Other user, enter lab\Administrator, and succeed.
-
----
 
 ## Step 9: Take Checkpoints of Both VMs
 **Action:**
@@ -211,13 +205,13 @@ Add-Computer `
 Checkpoint-VM -Name Server-DC -SnapshotName DC-Clean
 Checkpoint-VM -Name Client-10 -SnapshotName Client-Clean
 ```
+
 **Explanation:**
 - Checkpoints capture VM configuration, disk & memory state for rollback.
+
 **Validation:**
 - In Hyper-V Manager → right-click VM → Checkpoints shows DC-Clean and Client-Clean.
 - Test revert: Apply a checkpoint and confirm VM state resets.
-
----
 
 ## Step 10: Export the Server VM
 **Action:**
@@ -225,13 +219,13 @@ Checkpoint-VM -Name Client-10 -SnapshotName Client-Clean
 Stop-VM -Name Server-DC
 Export-VM -Name Server-DC -Path C:\LabExports\Server-DC
 ```
+
 **Explanation:**
 - Exports VM files (configuration, VHDX, snapshots) into a folder for sharing or archival.
+
 **Validation:**
 - Confirm folder C:\LabExports\Server-DC contains .vmc, .vhdx, and checkpoint files.
 - Test import on another Hyper-V host via Import Virtual Machine.
-
----
 
 # 6. Troubleshooting & FAQs
 
@@ -259,8 +253,6 @@ Export-VM -Name Server-DC -Path C:\LabExports\Server-DC
 - **Cause:** VM is running or snapshots open
 - **Fix:** Stop VM (`Stop-VM`), then rerun `Export-VM`.
 
----
-
 # 7. Expert Insights
 
 **Security Best Practices:**
@@ -277,8 +269,6 @@ Export-VM -Name Server-DC -Path C:\LabExports\Server-DC
 - Leverage Differencing Disks against a golden “baseline” image for rapid VM clones.
 - Automate VM lifecycle (creation, checkpoint, export) with PowerShell Desired State Configuration.
 - Document Hyper-V host health via `Measure-VM` and `Get-VMIntegrationService` reports.
-
----
 
 # 8. Knowledge-Retention Activities
 
